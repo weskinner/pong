@@ -1,5 +1,6 @@
 #include "SDL/SDL.h"
 #include "SDL/SDL_image.h"
+#include "SDL/SDL_ttf.h"
 #include <iostream>
 using namespace std;
 
@@ -11,14 +12,17 @@ const int FRAMES_PER_SECOND = 30;
 
 const int PADDLE_HEIGHT = 80;
 const int PADDLE_WIDTH = 20;
-const int PADDLE_SPEED = 5;
+const int PADDLE_SPEED = 7;
 
 const int BALL_WIDTH = 20;
 const int BALL_HEIGHT = 20;
+const int BALL_SPEED = 8;
 
 SDL_Surface *screen;
-
+TTF_Font *font = NULL;
 SDL_Event event;
+
+SDL_Color fontColor = {0xFF,0xFF,0xFF};
 
 bool init();
 bool clean_up();
@@ -50,6 +54,24 @@ public:
 	Ball();
 	void show();
 	void move(Paddle*,Opponent*);
+	bool opp_win();
+	bool player_win();
+};
+
+class Game
+{
+public:
+	Paddle me;
+	Opponent opp;
+	Ball ball;
+	string message;
+	SDL_Surface *messageSurface;
+
+	Game();
+
+	void handle_input();
+	void move();
+	void render();
 };
 
 int main(int argc, char *argv[])
@@ -61,9 +83,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	Ball myBall;
-	Paddle myPaddle;
-	Opponent myOpponent;
+	Game game;
 
 	//game loop
 	Uint32 startTime;
@@ -76,7 +96,7 @@ int main(int argc, char *argv[])
 		// events
 		if(SDL_PollEvent(&event))
 		{
-			myPaddle.handle_input();
+			game.handle_input();
 
 			if(event.type == SDL_QUIT)
 			{
@@ -85,16 +105,12 @@ int main(int argc, char *argv[])
 		}
 
 		// frame logic
-		myPaddle.move();
-		myBall.move(&myPaddle,&myOpponent);
-		myOpponent.move(myBall.y);
+		game.move();
 
 		// render
 		SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
 
-		myBall.show();
-		myPaddle.show();
-		myOpponent.show();
+		game.render();
 
 		if(SDL_Flip(screen) == -1)
 		{
@@ -131,14 +147,68 @@ bool init()
 		return false;
 	}
 
+	TTF_Init();
+
+	font = TTF_OpenFont("brewmastermodern.ttf",72);
+	if(font == NULL)
+	{
+		cout << "Error loading font";
+		return false;
+	}
+
 	return true;
 }
 
 bool clean_up()
 {
+	TTF_Quit();
 	SDL_Quit();
 
 	return true;
+}
+
+Game::Game()
+{
+	message = "";
+}
+
+void Game::handle_input()
+{
+	me.handle_input();
+}
+
+void Game::move()
+{
+	if(ball.player_win())
+	{
+		message = "Player Wins!";
+	}
+	else if(ball.opp_win())
+	{
+		message = "Opponent Wins.";
+	}
+	else
+	{
+		me.move();
+		ball.move(&me,&opp);
+		opp.move(ball.y);	
+	}
+}
+
+void Game::render()
+{
+	if(message != "")
+	{
+		messageSurface = TTF_RenderText_Solid(font, message.c_str(), fontColor);
+		SDL_Rect messageLoc;
+		messageLoc.x = SCREEN_WIDTH/2 - (messageSurface->w / 2);
+		messageLoc.y = 100;
+		SDL_BlitSurface(messageSurface, NULL, screen, &messageLoc);
+	}
+
+	ball.show();
+	me.show();
+	opp.show();
 }
 
 Ball::Ball()
@@ -150,8 +220,8 @@ Ball::Ball()
 
 	x = SCREEN_WIDTH - (SCREEN_WIDTH/4);
 	y = (SCREEN_HEIGHT / 2) - (BALL_HEIGHT/2);
-	xVel = -BALL_WIDTH/4;
-	yVel = BALL_HEIGHT/4;
+	xVel = -BALL_SPEED;
+	yVel = BALL_SPEED;
 }
 
 void Ball::move(Paddle *me, Opponent *opp)
@@ -169,17 +239,10 @@ void Ball::move(Paddle *me, Opponent *opp)
 	}
 
 	// wall collisions
-	if(x < 0)
-	{
-		xVel = -xVel;
-	}
+	
 	if(y < 0)
 	{
 		yVel = -yVel;
-	}
-	if(x + BALL_WIDTH > SCREEN_WIDTH)
-	{
-		xVel = -xVel;
 	}
 	if(y + BALL_HEIGHT > SCREEN_HEIGHT)
 	{
@@ -188,6 +251,24 @@ void Ball::move(Paddle *me, Opponent *opp)
 
 	x += xVel;
 	y += yVel;
+}
+
+bool Ball::opp_win()
+{
+	if(x < 0)
+	{
+		return true;
+	}
+	return false;
+}
+
+bool Ball::player_win()
+{
+	if(x + BALL_WIDTH > SCREEN_WIDTH)
+	{
+		return true;
+	}
+	return false;
 }
 
 void Ball::show()

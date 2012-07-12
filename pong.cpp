@@ -12,7 +12,7 @@ const int FRAMES_PER_SECOND = 30;
 
 const int PADDLE_HEIGHT = 80;
 const int PADDLE_WIDTH = 20;
-const int PADDLE_SPEED = 7;
+const int PADDLE_SPEED = 8;
 
 const int BALL_WIDTH = 20;
 const int BALL_HEIGHT = 20;
@@ -42,7 +42,7 @@ class Opponent
 public:
 	int x,y,xVel,yVel;
 	Opponent();
-	void move(int ballY);
+	void move(int ballX, int ballY);
 	void show();
 };
 
@@ -191,7 +191,7 @@ void Game::move()
 	{
 		me.move();
 		ball.move(&me,&opp);
-		opp.move(ball.y);	
+		opp.move(ball.x, ball.y);	
 	}
 }
 
@@ -230,12 +230,58 @@ void Ball::move(Paddle *me, Opponent *opp)
 	if((y < me->y+PADDLE_HEIGHT && y > me->y) && (x < me->x + PADDLE_WIDTH))
 	{
 		xVel = -xVel;
+
+		int paddleCenter = me->y + (PADDLE_HEIGHT/2);
+		int paddleSectionSize = (PADDLE_HEIGHT/2)/3;
+		// upper middle
+		if(y <= paddleCenter - paddleSectionSize && y >= (paddleCenter - paddleSectionSize * 2))
+		{
+			yVel -= 1;
+		}
+		// upper
+		else if(y < (paddleCenter - paddleSectionSize * 2))
+		{
+			yVel -= 2;
+		}
+		// lower middle
+		else if(y >= paddleCenter + paddleSectionSize && y <= (paddleCenter + paddleSectionSize * 2))
+		{
+			xVel += 1;
+		}
+		// lower
+		else if(y > (paddleCenter + paddleSectionSize * 2))
+		{	
+			xVel +=2;
+		}
 	}
 
 	// opponent collision
 	if((y < opp->y+PADDLE_HEIGHT && y > opp->y) && (x+BALL_WIDTH > opp->x))
 	{
 		xVel = -xVel;
+
+		int paddleCenter = opp->y + (PADDLE_HEIGHT/2);
+		int paddleSectionSize = (PADDLE_HEIGHT/2)/3;
+		// upper middle
+		if(y <= paddleCenter - paddleSectionSize && y >= (paddleCenter - paddleSectionSize * 2))
+		{
+			yVel -= 1;
+		}
+		// upper
+		else if(y < (paddleCenter - paddleSectionSize * 2))
+		{
+			yVel -= 2;
+		}
+		// lower middle
+		else if(y >= paddleCenter + paddleSectionSize && y <= (paddleCenter + paddleSectionSize * 2))
+		{
+			xVel += 1;
+		}
+		// lower
+		else if(y > (paddleCenter + paddleSectionSize * 2))
+		{	
+			xVel +=2;
+		}
 	}
 
 	// wall collisions
@@ -336,16 +382,35 @@ Opponent::Opponent()
 	yVel = PADDLE_SPEED;
 }
 
-void Opponent::move(int ballY)
+void Opponent::move(int ballX, int ballY)
 {
-	if(ballY + (BALL_HEIGHT/2) > y + (PADDLE_HEIGHT/2))
+	if(ballX > (SCREEN_WIDTH/2))
 	{
-		yVel = PADDLE_SPEED;
+		if(ballY + (BALL_HEIGHT/2) > y + (PADDLE_HEIGHT/2))
+		{
+			yVel = PADDLE_SPEED;
+		}
+		else
+		{
+			yVel = -PADDLE_SPEED;
+		}	
 	}
 	else
 	{
-		yVel = -PADDLE_SPEED;
+		if(y + PADDLE_HEIGHT/2 > (SCREEN_HEIGHT/2) + PADDLE_HEIGHT/2)
+		{
+			yVel = -PADDLE_SPEED;
+		}
+		else if(y + PADDLE_HEIGHT/2 < (SCREEN_HEIGHT/2) - PADDLE_HEIGHT/2)
+		{
+			yVel = PADDLE_SPEED;
+		}
+		else
+		{
+			yVel = 0;
+		}
 	}
+	
 
 	y += yVel;
 	if(y < 0 || (y + PADDLE_HEIGHT) > SCREEN_HEIGHT)
